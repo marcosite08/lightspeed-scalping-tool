@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lightspeed X-Series Debug Tool - Construmas</title>
+    <title>Scalping Tool Simple - Construmas</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             border-radius: 20px;
@@ -28,7 +28,7 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
             color: white;
             padding: 40px;
             text-align: center;
@@ -39,7 +39,7 @@
             margin-bottom: 10px;
         }
         
-        .api-version {
+        .simple-badge {
             background: rgba(255,255,255,0.2);
             padding: 5px 15px;
             border-radius: 15px;
@@ -48,124 +48,75 @@
             font-size: 0.9em;
         }
         
-        .debug-badge {
-            background: #e74c3c;
-            padding: 3px 10px;
-            border-radius: 10px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-        
         .content {
             padding: 40px;
         }
         
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #e9ecef;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-        
-        .tab {
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 8px 8px 0 0;
-            margin-right: 5px;
-            margin-bottom: 5px;
-            transition: all 0.3s;
-        }
-        
-        .tab.active {
-            background: #3498db;
-            color: white;
-        }
-        
-        .tab.debug {
-            background: #e74c3c;
-            color: white;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
         .status {
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px;
+            border-radius: 12px;
             margin: 20px 0;
             font-weight: bold;
             text-align: center;
+            font-size: 1.2em;
         }
         
         .status.success {
             background: #d4edda;
             color: #155724;
-            border: 1px solid #c3e6cb;
+            border: 2px solid #c3e6cb;
         }
         
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
         }
         
-        .status.warning {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
+        .controls h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
         }
         
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
+        .date-input {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            margin: 15px;
+            font-size: 18px;
+            width: 200px;
         }
         
         .button {
-            background: #3498db;
+            background: #e74c3c;
             color: white;
-            padding: 12px 25px;
+            padding: 15px 30px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
-            font-size: 16px;
-            margin: 10px;
+            font-size: 18px;
+            margin: 15px;
             transition: all 0.3s;
+            font-weight: bold;
         }
         
         .button:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-        
-        .button.small {
-            padding: 8px 15px;
-            font-size: 14px;
-        }
-        
-        .button.danger {
-            background: #e74c3c;
-        }
-        
-        .button.danger:hover {
             background: #c0392b;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
         
-        .button.secondary {
-            background: #6c757d;
-        }
-        
-        .button.debug {
-            background: #e74c3c;
+        .button.mega {
+            background: #8e44ad;
+            font-size: 20px;
+            padding: 20px 40px;
             animation: pulse 2s infinite;
+        }
+        
+        .button.mega:hover {
+            background: #732d91;
         }
         
         @keyframes pulse {
@@ -174,735 +125,157 @@
             100% { transform: scale(1); }
         }
         
-        .controls {
+        .summary {
+            background: #e8f5e8;
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px 0;
             text-align: center;
-            margin: 30px 0;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
         }
         
-        .date-input, .select-input {
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            margin: 10px;
-            font-size: 16px;
-        }
-        
-        .closure-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 15px 0;
-            transition: all 0.3s;
-        }
-        
-        .closure-card:hover {
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        
-        .debug-card {
-            border-left: 4px solid #e74c3c;
-            background: #fff5f5;
-        }
-        
-        .success-card {
-            border-left: 4px solid #28a745;
-            background: #f8fff8;
-        }
-        
-        .warning-card {
-            border-left: 4px solid #ffc107;
-            background: #fffdf5;
-        }
-        
-        .closure-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .summary h3 {
+            color: #155724;
+            font-size: 1.5em;
             margin-bottom: 15px;
         }
         
-        .closure-outlet {
+        .register-count {
+            font-size: 3em;
             font-weight: bold;
-            color: #2c3e50;
-            font-size: 1.2em;
+            color: #e74c3c;
+            margin: 10px 0;
         }
         
-        .closure-id {
-            font-family: monospace;
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        
-        .closure-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .detail-item {
-            color: #495057;
-        }
-        
-        .detail-label {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-        
-        .detail-value {
-            font-weight: bold;
-            font-size: 1.1em;
+        .info-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
         }
         
         .loading {
             text-align: center;
             padding: 40px;
+            font-size: 1.2em;
             color: #6c757d;
             font-style: italic;
         }
         
-        .summary {
-            background: #e3f2fd;
-            border: 1px solid #bbdefb;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-        
-        .card {
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .api-info {
-            background: #e8f5e8;
-            border: 1px solid #c3e6cb;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            font-size: 0.9em;
-        }
-        
-        .debug-info {
-            background: #ffeaa7;
-            border: 1px solid #fdcb6e;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
-            font-size: 0.9em;
-        }
-        
-        .json-display {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            max-height: 300px;
+        .url-list {
+            max-height: 400px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
         }
         
-        .recommendation {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 15px 0;
+        .url-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #e74c3c;
         }
         
-        .problem-indicator {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
+        .countdown {
+            font-size: 2em;
             font-weight: bold;
-            margin-left: 10px;
-        }
-        
-        .problem-success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .problem-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .problem-error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        @media (max-width: 768px) {
-            .closure-details {
-                grid-template-columns: 1fr;
-            }
-            
-            .tabs {
-                flex-direction: column;
-            }
-            
-            .tab {
-                margin-right: 0;
-            }
+            color: #e74c3c;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Lightspeed X-Series Debug Tool</h1>
-            <p>Herramienta de debugging para Construmas</p>
-            <div class="api-version">X-Series API v2.0 <span class="debug-badge">DEBUG MODE</span></div>
+            <h1>🎯 Scalping Tool SIMPLE</h1>
+            <p>Sin APIs complicadas - Solo URLs directas</p>
+            <div class="simple-badge">MÉTODO SIMPLE 🚀</div>
         </div>
         
         <div class="content">
-            <div id="status" class="status">
-                🔄 Inicializando debugging X-Series...
+            <div id="status" class="status success">
+                ✅ Listo para scalping masivo
             </div>
             
-            <div class="tabs">
-                <button class="tab debug active" onclick="showTab('debug')">🔍 Debug Principal</button>
-                <button class="tab" onclick="showTab('closures')">📋 Cierres</button>
-                <button class="tab" onclick="showTab('registernvo')">🎯 Test RegisterNVO</button>
-                <button class="tab" onclick="showTab('dates')">📅 Fechas</button>
-                <button class="tab" onclick="showTab('connection')">🔗 Conexión</button>
-                <button class="tab" onclick="showTab('help')">❓ Ayuda</button>
+            <div class="summary">
+                <h3>📊 Registros Disponibles</h3>
+                <div class="register-count" id="register-count">10</div>
+                <p>registros listos para scalping automático</p>
             </div>
             
-            <!-- Tab: Debug Principal -->
-            <div id="tab-debug" class="tab-content active">
-                <div class="controls">
-                    <h3>🔍 Debug Completo de Cierres</h3>
-                    <p>Diagnostica exactamente por qué no se encuentran cierres</p>
-                    <input type="date" id="debugDateInput" class="date-input" value="">
-                    <button class="button debug" onclick="runFullDebug()">
-                        🔍 Ejecutar Debug Completo
-                    </button>
-                </div>
+            <div class="controls">
+                <h2>🎯 Scalping Simple</h2>
+                <p>Selecciona fecha y automáticamente abriremos todos los cierres</p>
                 
-                <div class="debug-info">
-                    <strong>🎯 Este debug te dirá:</strong><br>
-                    • Cuántos registros tienes<br>
-                    • Qué fechas tienen cierres<br>
-                    • Por qué falla tu búsqueda<br>
-                    • Qué endpoint no funciona<br>
-                    • Recomendación específica
-                </div>
-                
-                <div id="debug-results"></div>
-            </div>
-            
-            <!-- Tab: Cierres -->
-            <div id="tab-closures" class="tab-content">
-                <div class="controls">
-                    <h3>📋 Búsqueda de Cierres</h3>
+                <div>
                     <input type="date" id="dateInput" class="date-input" value="">
-                    <button class="button" onclick="searchClosures()">
-                        📋 Buscar Cierres
+                    <br>
+                    <button class="button" onclick="generateUrls()">
+                        📋 Generar URLs
                     </button>
-                    <button class="button danger" onclick="openAllClosures()">
-                        🔓 Abrir Todos los Cierres
+                    <button class="button mega" onclick="openAllNow()">
+                        🚀 ABRIR TODO AHORA
                     </button>
                 </div>
-                
-                <div id="closures-results"></div>
             </div>
             
-            <!-- Tab: Test RegisterNVO -->
-            <div id="tab-registernvo" class="tab-content">
-                <div class="controls">
-                    <h3>🎯 Test RegisterNVO Específico</h3>
-                    <p>Prueba el registro que sabemos que cerró el 2025-07-17</p>
-                    <button class="button" onclick="testRegisterNVO()">
-                        🎯 Probar RegisterNVO
-                    </button>
-                </div>
-                
-                <div class="api-info">
-                    <strong>RegisterNVO ID:</strong> 02dcd191-aefb-11e7-edd8-2a8a3939ec0c<br>
-                    <strong>Fecha conocida:</strong> 2025-07-17<br>
-                    <strong>Estado:</strong> Cerrado
-                </div>
-                
-                <div id="registernvo-results"></div>
+            <div class="info-box">
+                <strong>💡 Método Simple:</strong><br>
+                • No necesita API complicada<br>
+                • Abre directamente las URLs de Lightspeed<br>
+                • Funciona con cualquier fecha<br>
+                • 10 registros conocidos listos para usar
             </div>
             
-            <!-- Tab: Fechas -->
-            <div id="tab-dates" class="tab-content">
-                <div class="controls">
-                    <h3>📅 Fechas Disponibles</h3>
-                    <p>Ve todas las fechas con cierres disponibles en tu sistema</p>
-                    <button class="button" onclick="getAvailableDates()">
-                        📅 Ver Fechas Disponibles
-                    </button>
-                </div>
-                <div id="dates-results"></div>
-            </div>
-            
-            <!-- Tab: Conexión -->
-            <div id="tab-connection" class="tab-content">
-                <div class="controls">
-                    <h3>🔗 Test de Conexión X-Series</h3>
-                    <button class="button" onclick="testConnection()">
-                        🔍 Probar Conexión
-                    </button>
-                </div>
-                <div id="connection-results"></div>
-            </div>
-            
-            <!-- Tab: Ayuda -->
-            <div id="tab-help" class="tab-content">
-                <div class="card">
-                    <h3>🆘 Problemas Comunes y Soluciones</h3>
-                    
-                    <h4>❌ "No se encontraron cierres"</h4>
-                    <ul>
-                        <li>Usa el <strong>Debug Principal</strong> para identificar el problema exacto</li>
-                        <li>Verifica que uses una fecha que realmente tenga cierres</li>
-                        <li>Prueba la pestaña <strong>"Fechas"</strong> para ver fechas disponibles</li>
-                    </ul>
-                    
-                    <h4>🎯 RegisterNVO no funciona</h4>
-                    <ul>
-                        <li>Usa la pestaña <strong>"Test RegisterNVO"</strong></li>
-                        <li>Verifica permisos del endpoint payments_summary</li>
-                        <li>Revisa el token de API</li>
-                    </ul>
-                    
-                    <h4>🔗 Error de conexión</h4>
-                    <ul>
-                        <li>Verifica variables de entorno en Railway</li>
-                        <li>Confirma que el token sea válido</li>
-                        <li>Usa la pestaña <strong>"Conexión"</strong> para diagnosticar</li>
-                    </ul>
-                </div>
-                
-                <div class="card">
-                    <h3>📚 URLs de Debug</h3>
-                    <p><strong>Debug completo:</strong> /api/debug-closures?date=YYYY-MM-DD</p>
-                    <p><strong>Test RegisterNVO:</strong> /api/test-registernvo</p>
-                    <p><strong>Fechas disponibles:</strong> /api/available-dates</p>
-                    <p><strong>Documentación:</strong> <a href="https://x-series-api.lightspeedhq.com/" target="_blank">X-Series API</a></p>
-                </div>
-            </div>
+            <div id="results"></div>
         </div>
     </div>
 
     <script>
-        let currentClosures = [];
+        let currentUrls = [];
         
-        // Establecer fecha de hoy por defecto
+        // Establecer fecha de hoy
         window.addEventListener('load', function() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('dateInput').value = today;
-            document.getElementById('debugDateInput').value = '2025-07-17'; // Fecha conocida
-            testConnection();
+            loadRegisterCount();
         });
         
-        function showTab(tabName) {
-            // Ocultar todas las tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Mostrar tab seleccionada
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            event.target.classList.add('active');
-        }
-        
-        async function runFullDebug() {
-            const date = document.getElementById('debugDateInput').value;
-            const resultsDiv = document.getElementById('debug-results');
-            
-            if (!date) {
-                alert('Por favor selecciona una fecha para debug');
-                return;
-            }
-            
-            resultsDiv.innerHTML = '<div class="loading">🔍 Ejecutando debug completo...</div>';
-            
+        async function loadRegisterCount() {
             try {
-                const response = await fetch(`/api/debug-closures?date=${date}`);
+                const response = await fetch('/api/registers');
                 const data = await response.json();
                 
-                displayDebugResults(data, resultsDiv);
-                
+                if (data.success) {
+                    document.getElementById('register-count').textContent = data.total;
+                }
             } catch (error) {
-                resultsDiv.innerHTML = `<div class="status error">❌ Error en debug: ${error.message}</div>`;
+                console.log('Error cargando registros:', error);
             }
         }
         
-        function displayDebugResults(data, container) {
-            let html = '';
-            
-            // Problema identificado
-            const problemClass = data.problem_identified === 'SUCCESS' ? 'problem-success' : 
-                                data.problem_identified === 'NO_MATCHING_DATE' ? 'problem-warning' : 'problem-error';
-            
-            html += `<div class="card debug-card">
-                <h3>🔍 Resultado del Debug</h3>
-                <p><strong>Problema identificado:</strong> 
-                <span class="problem-indicator ${problemClass}">${data.problem_identified}</span></p>
-                <div class="recommendation">
-                    <strong>💡 Recomendación:</strong><br>
-                    ${data.recommendation}
-                </div>
-            </div>`;
-            
-            // Resumen
-            html += `<div class="card success-card">
-                <h3>📊 Resumen del Sistema</h3>
-                <div class="grid">
-                    <div>
-                        <p><strong>Total registros:</strong> ${data.summary.total_registers}</p>
-                        <p><strong>Registros con cierres:</strong> ${data.summary.registers_with_closures}</p>
-                    </div>
-                    <div>
-                        <p><strong>Coinciden con fecha:</strong> ${data.summary.matching_registers}</p>
-                        <p><strong>Payments exitosos:</strong> ${data.summary.successful_payments}</p>
-                    </div>
-                </div>
-            </div>`;
-            
-            // Fechas disponibles
-            if (data.available_dates.length > 0) {
-                html += `<div class="card">
-                    <h3>📅 Fechas con Cierres Disponibles</h3>
-                    <p><strong>Total fechas:</strong> ${data.available_dates.length}</p>
-                    <div style="margin: 10px 0;">`;
-                
-                data.available_dates.slice(0, 10).forEach(date => {
-                    html += `<button class="button small" onclick="loadDateInDebug('${date}')" style="margin: 2px;">${date}</button>`;
-                });
-                
-                if (data.available_dates.length > 10) {
-                    html += `<p><em>... y ${data.available_dates.length - 10} fechas más</em></p>`;
-                }
-                
-                html += `</div></div>`;
-            }
-            
-            // Cierres exitosos si los hay
-            if (data.successful_closures && data.successful_closures.length > 0) {
-                html += `<div class="card success-card">
-                    <h3>✅ Cierres Encontrados</h3>`;
-                
-                data.successful_closures.forEach(closure => {
-                    html += `<div class="closure-card">
-                        <h4>${closure.name}</h4>
-                        <p><strong>Fecha:</strong> ${closure.close_date}</p>
-                        <p><strong>Total:</strong> $${closure.total_payments}</p>
-                        <p><strong>Secuencia:</strong> ${closure.sequence_number}</p>
-                        <button class="button small" onclick="loadDateAndSearch('${closure.close_date}')">
-                            📋 Buscar Esta Fecha
-                        </button>
-                    </div>`;
-                });
-                
-                html += `</div>`;
-            }
-            
-            // Detalles técnicos
-            html += `<div class="card">
-                <h3>🔧 Detalles Técnicos</h3>
-                <button class="button small" onclick="toggleTechnicalDetails()" id="toggle-tech">
-                    👁️ Mostrar Detalles
-                </button>
-                <div id="technical-details" style="display: none;">
-                    <div class="json-display">${JSON.stringify(data, null, 2)}</div>
-                </div>
-            </div>`;
-            
-            container.innerHTML = html;
-        }
-        
-        async function testRegisterNVO() {
-            const resultsDiv = document.getElementById('registernvo-results');
-            resultsDiv.innerHTML = '<div class="loading">🎯 Probando RegisterNVO...</div>';
-            
-            try {
-                const response = await fetch('/api/test-registernvo');
-                const data = await response.json();
-                
-                let html = `<div class="card ${data.working ? 'success-card' : 'warning-card'}">
-                    <h3>${data.working ? '✅' : '❌'} Test RegisterNVO</h3>
-                    <p><strong>Estado:</strong> ${data.message}</p>
-                    <p><strong>Fecha esperada:</strong> ${data.expected_date || 'N/A'}</p>
-                    <p><strong>Próximo paso:</strong> ${data.next_step}</p>
-                </div>`;
-                
-                // Mostrar tests individuales
-                html += `<div class="grid">`;
-                
-                for (const [testName, result] of Object.entries(data.tests)) {
-                    const cardClass = result.success ? 'success-card' : 'warning-card';
-                    html += `<div class="card ${cardClass}">
-                        <h4>${testName}</h4>
-                        <p><strong>Estado:</strong> ${result.success ? '✅ OK' : '❌ Error'}</p>`;
-                    
-                    if (result.success && result.total_payments !== undefined) {
-                        html += `<p><strong>Total:</strong> $${result.total_payments}</p>`;
-                    }
-                    
-                    if (result.error) {
-                        html += `<p><strong>Error:</strong> ${result.error}</p>`;
-                    }
-                    
-                    html += `</div>`;
-                }
-                
-                html += `</div>`;
-                
-                // Si funciona, mostrar cierre completo
-                if (data.tests.complete_closure) {
-                    html += `<div class="card success-card">
-                        <h3>🎯 Cierre Completo Construido</h3>
-                        <div class="closure-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Outlet</div>
-                                <div class="detail-value">${data.tests.complete_closure.outlet}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Fecha</div>
-                                <div class="detail-value">${data.tests.complete_closure.date}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Total</div>
-                                <div class="detail-value">$${data.tests.complete_closure.payments}</div>
-                            </div>
-                        </div>
-                        <button class="button" onclick="window.open('${data.tests.complete_closure.url}', '_blank')">
-                            🔗 Abrir Cierre
-                        </button>
-                        <button class="button small secondary" onclick="loadDateAndSearch('${data.tests.complete_closure.date}')">
-                            📋 Buscar Esta Fecha
-                        </button>
-                    </div>`;
-                }
-                
-                resultsDiv.innerHTML = html;
-                
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
-            }
-        }
-        
-        async function searchClosures() {
+        async function generateUrls() {
             const date = document.getElementById('dateInput').value;
-            const resultsDiv = document.getElementById('closures-results');
+            const resultsDiv = document.getElementById('results');
             
             if (!date) {
                 alert('Por favor selecciona una fecha');
                 return;
             }
             
-            resultsDiv.innerHTML = '<div class="loading">🔍 Buscando cierres...</div>';
+            resultsDiv.innerHTML = '<div class="loading">📋 Generando URLs...</div>';
             
             try {
                 const response = await fetch(`/api/closures?date=${date}`);
                 const data = await response.json();
                 
-                if (data.success && data.data.length > 0) {
-                    currentClosures = data.data;
-                    displayClosures(currentClosures, data);
-                } else {
-                    let html = `<div class="status warning">⚠️ ${data.message || 'No se encontraron cierres'}</div>`;
-                    
-                    if (data.suggestion) {
-                        html += `<div class="recommendation">💡 ${data.suggestion}</div>`;
-                    }
-                    
-                    if (data.debug_endpoints) {
-                        html += `<div class="debug-info">
-                            <strong>🔍 Para diagnosticar:</strong><br>
-                            <button class="button small debug" onclick="loadDateInDebug('${date}')">
-                                🔍 Debug Esta Fecha
-                            </button>
-                        </div>`;
-                    }
-                    
-                    resultsDiv.innerHTML = html;
-                }
-                
-            } catch (error) {
-                resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
-            }
-        }
-        
-        function displayClosures(closures, apiData) {
-            const resultsDiv = document.getElementById('closures-results');
-            
-            const totalSales = closures.reduce((sum, c) => sum + (c.sales || 0), 0);
-            const totalPayments = closures.reduce((sum, c) => sum + (c.payments || 0), 0);
-            
-            let html = `<div class="summary">
-                <h3>📊 Resumen para ${apiData.date}</h3>
-                <div class="grid">
-                    <div>
-                        <p><strong>Total cierres:</strong> ${closures.length}</p>
-                        <p><strong>Total ventas:</strong> $${totalSales.toFixed(2)}</p>
-                    </div>
-                    <div>
-                        <p><strong>Total pagos:</strong> $${totalPayments.toFixed(2)}</p>
-                        <p><strong>API:</strong> ${apiData.api_version}</p>
-                    </div>
-                </div>
-            </div>`;
-            
-            closures.forEach(closure => {
-                html += `<div class="closure-card success-card">
-                    <div class="closure-header">
-                        <div class="closure-outlet">${closure.outlet}</div>
-                        <div class="closure-id">${closure.id.split('-').pop()}</div>
-                    </div>
-                    
-                    <div class="closure-details">
-                        <div class="detail-item">
-                            <div class="detail-label">Registro</div>
-                            <div class="detail-value">${closure.register_name}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Total</div>
-                            <div class="detail-value">${(closure.payments || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Secuencia</div>
-                            <div class="detail-value">${closure.sequence_number}</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">Cerrado</div>
-                            <div class="detail-value">${closure.closed_at ? new Date(closure.closed_at).toLocaleString() : 'N/A'}</div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 15px;">
-                        <button class="button" onclick="openClosure('${closure.url}')">
-                            🔗 Abrir Cierre
-                        </button>
-                    </div>
-                </div>`;
-            });
-            
-            resultsDiv.innerHTML = html;
-        }
-        
-        async function testConnection() {
-            const statusDiv = document.getElementById('status');
-            const resultsDiv = document.getElementById('connection-results');
-            
-            statusDiv.textContent = '🔄 Probando conexión X-Series...';
-            statusDiv.className = 'status';
-            
-            if (resultsDiv) {
-                resultsDiv.innerHTML = '<div class="loading">🔄 Probando conexión...</div>';
-            }
-            
-            try {
-                const response = await fetch('/api/test');
-                const data = await response.json();
-                
                 if (data.success) {
-                    statusDiv.textContent = '✅ Conexión exitosa con X-Series API';
-                    statusDiv.className = 'status success';
-                    
-                    if (resultsDiv) {
-                        let html = '<div class="card success-card"><h3>✅ Conexión X-Series</h3>';
-                        html += `<p><strong>API:</strong> ${data.api_version}</p>`;
-                        html += `<p><strong>URL:</strong> ${data.api_url}</p>`;
-                        html += '<h4>Tests de Endpoints:</h4>';
-                        
-                        for (const [endpoint, result] of Object.entries(data.test_results)) {
-                            const statusClass = result.success ? 'success' : 'error';
-                            html += `<div class="api-info">
-                                <strong>${endpoint}</strong>: ${result.success ? '✅ OK' : '❌ Error'}
-                                ${result.count ? ` (${result.count} items)` : ''}
-                            </div>`;
-                        }
-                        
-                        html += '</div>';
-                        resultsDiv.innerHTML = html;
-                    }
-                } else {
-                    throw new Error(data.error || 'Error de conexión');
-                }
-            } catch (error) {
-                statusDiv.textContent = '❌ Error de conexión X-Series';
-                statusDiv.className = 'status error';
-                
-                if (resultsDiv) {
-                    resultsDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
-                }
-            }
-        }
-        
-        async function getAvailableDates() {
-            const resultsDiv = document.getElementById('dates-results');
-            resultsDiv.innerHTML = '<div class="loading">📅 Obteniendo fechas...</div>';
-            
-            try {
-                const response = await fetch('/api/available-dates');
-                const data = await response.json();
-                
-                if (data.success) {
-                    let html = `<div class="card">
-                        <h3>📅 Fechas Disponibles</h3>
-                        <p><strong>Total registros:</strong> ${data.total_registers}</p>
-                        <p><strong>Registros con cierres:</strong> ${data.registers_with_closures}</p>
-                        <p><strong>Fechas diferentes:</strong> ${data.dates_list.length}</p>
-                    </div>`;
-                    
-                    if (data.dates_list.length > 0) {
-                        html += '<div class="card success-card"><h3>🗓️ Fechas con Cierres</h3>';
-                        
-                        data.most_recent_dates.forEach(date => {
-                            const closuresCount = data.available_dates[date].length;
-                            html += `<div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                                <strong>${date}</strong> (${closuresCount} cierres)
-                                <br>
-                                <button class="button small" onclick="loadDateAndSearch('${date}')">
-                                    📋 Buscar Cierres
-                                </button>
-                                <button class="button small debug" onclick="loadDateInDebug('${date}')">
-                                    🔍 Debug
-                                </button>
-                            </div>`;
-                        });
-                        
-                        html += '</div>';
-                    } else {
-                        html += '<div class="status warning">⚠️ No se encontraron fechas con cierres</div>';
-                    }
-                    
-                    if (data.suggestion) {
-                        html += `<div class="recommendation">💡 ${data.suggestion}</div>`;
-                    }
-                    
-                    resultsDiv.innerHTML = html;
+                    currentUrls = data.data;
+                    displayUrls(currentUrls, data);
                 } else {
                     throw new Error(data.error);
                 }
@@ -911,51 +284,130 @@
             }
         }
         
-        function loadDateInDebug(date) {
-            document.getElementById('debugDateInput').value = date;
-            showTab('debug');
-            runFullDebug();
+        function displayUrls(urls, apiData) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `<div class="summary">
+                <h3>🎯 URLs Generadas para ${apiData.date}</h3>
+                <div class="register-count">${urls.length}</div>
+                <p>URLs listas para abrir automáticamente</p>
+                
+                <button class="button mega" onclick="openAllWithDelay()">
+                    🚀 ABRIR TODAS (con delay)
+                </button>
+                <button class="button" onclick="openAllInstant()">
+                    ⚡ ABRIR TODAS (instantáneo)
+                </button>
+            </div>`;
+            
+            html += '<div class="url-list">';
+            urls.forEach((url, index) => {
+                html += `<div class="url-item">
+                    <strong>${index + 1}. ${url.register_name}</strong> - ${url.outlet}
+                    <br>
+                    <small>${url.url}</small>
+                    <br>
+                    <button class="button" style="margin: 5px; padding: 5px 10px; font-size: 12px;" onclick="window.open('${url.url}', '_blank')">
+                        🔗 Abrir
+                    </button>
+                </div>`;
+            });
+            html += '</div>';
+            
+            resultsDiv.innerHTML = html;
         }
         
-        function loadDateAndSearch(date) {
-            document.getElementById('dateInput').value = date;
-            showTab('closures');
-            searchClosures();
-        }
-        
-        function openClosure(url) {
-            window.open(url, '_blank');
-        }
-        
-        function openAllClosures() {
-            if (currentClosures.length === 0) {
-                alert('❌ No hay cierres para abrir. Primero busca cierres.');
+        async function openAllNow() {
+            const date = document.getElementById('dateInput').value;
+            
+            if (!date) {
+                alert('Por favor selecciona una fecha primero');
                 return;
             }
             
-            const confirmed = confirm(`¿Estás seguro de que quieres abrir ${currentClosures.length} cierres?`);
-            if (!confirmed) return;
+            if (!confirm('¿Abrir TODOS los cierres AHORA?')) {
+                return;
+            }
             
-            currentClosures.forEach((closure, index) => {
-                setTimeout(() => {
-                    window.open(closure.url, '_blank');
-                }, index * 500);
-            });
-            
-            alert(`✅ Abriendo ${currentClosures.length} cierres...`);
+            // Generar y abrir inmediatamente
+            try {
+                const response = await fetch(`/api/closures?date=${date}`);
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    const urls = data.data;
+                    
+                    // Abrir todas las URLs
+                    urls.forEach((closure, index) => {
+                        setTimeout(() => {
+                            window.open(closure.url, '_blank');
+                        }, index * 300); // 300ms entre cada ventana
+                    });
+                    
+                    alert(`🚀 Abriendo ${urls.length} cierres...`);
+                } else {
+                    alert('❌ No se pudieron generar las URLs');
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
         }
         
-        function toggleTechnicalDetails() {
-            const details = document.getElementById('technical-details');
-            const button = document.getElementById('toggle-tech');
-            
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-                button.textContent = '👁️ Ocultar Detalles';
-            } else {
-                details.style.display = 'none';
-                button.textContent = '👁️ Mostrar Detalles';
+        function openAllWithDelay() {
+            if (currentUrls.length === 0) {
+                alert('❌ Primero genera las URLs');
+                return;
             }
+            
+            if (!confirm(`¿Abrir ${currentUrls.length} cierres con delay de 500ms?`)) {
+                return;
+            }
+            
+            let countdown = 3;
+            const resultsDiv = document.getElementById('results');
+            
+            const countdownInterval = setInterval(() => {
+                resultsDiv.innerHTML = `<div class="summary">
+                    <h3>🚀 Abriendo en...</h3>
+                    <div class="countdown">${countdown}</div>
+                </div>`;
+                
+                countdown--;
+                
+                if (countdown < 0) {
+                    clearInterval(countdownInterval);
+                    
+                    // Abrir todas las URLs
+                    currentUrls.forEach((closure, index) => {
+                        setTimeout(() => {
+                            window.open(closure.url, '_blank');
+                        }, index * 500);
+                    });
+                    
+                    resultsDiv.innerHTML = `<div class="summary">
+                        <h3>✅ Abriendo ${currentUrls.length} cierres...</h3>
+                        <p>Las ventanas se están abriendo automáticamente</p>
+                    </div>`;
+                }
+            }, 1000);
+        }
+        
+        function openAllInstant() {
+            if (currentUrls.length === 0) {
+                alert('❌ Primero genera las URLs');
+                return;
+            }
+            
+            if (!confirm(`¿Abrir ${currentUrls.length} cierres INSTANTÁNEAMENTE?`)) {
+                return;
+            }
+            
+            // Abrir todas sin delay
+            currentUrls.forEach(closure => {
+                window.open(closure.url, '_blank');
+            });
+            
+            alert(`⚡ ${currentUrls.length} ventanas abiertas instantáneamente!`);
         }
     </script>
 </body>
