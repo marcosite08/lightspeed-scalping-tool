@@ -83,30 +83,81 @@ app.get('/api/closures', async (req, res) => {
             });
         }
 
-        // Llamar a la API real de Lightspeed para obtener cierres
-        const closures = await callLightspeedAPI(`/register_closures?date=${date}`);
+        console.log(`🔍 Buscando cierres para fecha: ${date}`);
+
+        // Paso 1: Obtener todos los registros
+        const registersResponse = await callLightspeedAPI('/registers');
+        const registers = registersResponse.data;
         
-        // Transformar datos para el frontend
-        const transformedClosures = closures.data.map(closure => ({
-            id: closure.id,
-            outlet: closure.outlet ? closure.outlet.name : 'Desconocido',
-            date: date,
-            sales: parseFloat(closure.totals?.total_sales || 0),
-            payments: parseFloat(closure.totals?.total_payments || 0),
-            url: `https://construmas.retail.lightspeed.app/register/closure/summary/${closure.id}`
-        }));
+        console.log(`📋 Encontrados ${registers.length} registros`);
+
+        // Paso 2: Para cada registro, obtener sus cierres del día específico
+        const closures = [];
+        
+        for (const register of registers) {
+            try {
+                // Verificar si el registro tiene cierre en la fecha especificada
+                if (register.register_close_time) {
+                    const closeDate = new Date(register.register_close_time).toISOString().split('T')[0];
+                    
+                    if (closeDate === date) {
+                        console.log(`✅ Registro ${register.name} cerrado en ${date}`);
+                        
+                        // Obtener datos detallados del cierre
+                        const paymentsSummary = await callLightspeedAPI(`/registers/${register.id}/payments_summary`);
+                        
+                        // Obtener información del outlet
+                        const outletResponse = await callLightspeedAPI(`/outlets/${register.outlet_id}`);
+                        const outlet = outletResponse.data;
+                        
+                        // Calcular totales
+                        const totalPayments = paymentsSummary.data.payments.reduce((sum, payment) => {
+                            return sum + parseFloat(payment.total || 0);
+                        }, 0);
+                        
+                        closures.push({
+                            id: register.id,
+                            outlet: outlet.name,
+                            register_name: register.name,
+                            date: date,
+                            closed_at: register.register_close_time,
+                            sales: totalPayments, // Usando payments como sales
+                            payments: totalPayments,
+                            sequence_number: paymentsSummary.data.register_closure_sequence_number,
+                            url: `https://construmas.retail.lightspeed.app/register/closure/summary/${register.id}`
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(`❌ Error procesando registro ${register.name}:`, error.message);
+                // Continuar con el siguiente registro
+            }
+        }
+
+        console.log(`📊 Total cierres encontrados: ${closures.length}`);
+
+        if (closures.length === 0) {
+            // Si no hay cierres reales, devolver mensaje informativo
+            return res.json({
+                success: true,
+                data: [],
+                total: 0,
+                date: date,
+                message: `No se encontraron cierres para la fecha ${date}. Verifica que haya registros cerrados en esa fecha.`
+            });
+        }
 
         res.json({
             success: true,
-            data: transformedClosures,
-            total: transformedClosures.length,
+            data: closures,
+            total: closures.length,
             date: date
         });
         
     } catch (error) {
-        console.error('Error obteniendo cierres:', error);
+        console.error('❌ Error obteniendo cierres:', error);
         
-        // Si hay error, devolver datos simulados como fallback
+        // Fallback con datos simulados
         const fallbackClosures = [
             {
                 id: '020b2c2a-46fb-11f0-e88b-5d184126b98d',
