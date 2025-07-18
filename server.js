@@ -48,11 +48,291 @@ app.get('/health', (req, res) => {
        message: '✅ Servidor X-Series funcionando en Railway',
        api_version: 'Lightspeed X-Series v2.0',
        documentation: 'https://x-series-api.lightspeedhq.com/',
+       debug_endpoints: [
+           '/api/debug-closures?date=YYYY-MM-DD',
+           '/api/test-registernvo',
+           '/api/available-dates'
+       ],
        timestamp: new Date().toISOString()
    });
 });
 
-// Endpoint principal para obtener cierres - ACTUALIZADO PARA X-SERIES
+// 🔍 ENDPOINT DE DEBUGGING PRINCIPAL
+app.get('/api/debug-closures', async (req, res) => {
+   try {
+       const { date } = req.query;
+       console.log(`🔍 DEBUG: Buscando cierres para fecha: ${date}`);
+
+       // Paso 1: Obtener todos los registros
+       const registersResponse = await callLightspeedAPI('/registers');
+       const registers = registersResponse.data;
+       
+       console.log(`📋 DEBUG: Total registros encontrados: ${registers.length}`);
+
+       const debugInfo = [];
+       const availableDates = new Set();
+       let totalMatches = 0;
+       let totalPaymentsSuccess = 0;
+       
+       for (const register of registers) {
+           const registerDebug = {
+               name: register.name,
+               id: register.id,
+               is_open: register.is_open,
+               has_close_time: !!register.register_close_time,
+               close_time: register.register_close_time,
+               close_date: null,
+               matches_search: false,
+               payments_summary_test: null,
+               outlet_id: register.outlet_id
+           };
+           
+           console.log(`🔍 DEBUG: Procesando ${register.name} (${register.id})`);
+           
+           // Procesar fecha de cierre
+           if (register.register_close_time) {
+               try {
+                   const closeDate = new Date(register.register_close_time).toISOString().split('T')[0];
+                   registerDebug.close_date = closeDate;
+                   availableDates.add(closeDate);
+                   
+                   console.log(`   📅 Fecha de cierre: ${closeDate}`);
+                   
+                   // Verificar si coincide con la búsqueda
+                   if (date && closeDate === date) {
+                       registerDebug.matches_search = true;
+                       totalMatches++;
+                       
+                       console.log(`   ✅ MATCH encontrado para ${date}!`);
+                       
+                       // Probar payments_summary para este registro
+                       try {
+                           console.log(`   🔍 Probando payments_summary para ${register.name}`);
+                           const paymentsData = await callLightspeedAPI(`/registers/${register.id}/payments_summary`);
+                           
+                           let totalPayments = 0;
+                           if (paymentsData.data && paymentsData.data.payments) {
+                               totalPayments = paymentsData.data.payments.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+                           }
+                           
+                           registerDebug.payments_summary_test = {
+                               success: true,
+                               total_payments: totalPayments,
+                               sequence_number: paymentsData.data?.register_closure_sequence_number,
+                               payments_count: paymentsData.data?.payments?.length || 0,
+                               payments_breakdown: paymentsData.data?.payments || [],
+                               full_data: paymentsData.data
+                           };
+                           
+                           totalPaymentsSuccess++;
+                           console.log(`   ✅ Payments summary OK - Total: ${totalPayments}, Secuencia: ${paymentsData.data?.register_closure_sequence_number}`);
+                           
+                       } catch (paymentsError) {
+                           registerDebug.payments_summary_test = {
+                               success: false,
+                               error: paymentsError.message,
+                               status_code: paymentsError.status
+                           };
+                           console.log(`   ❌ Error en payments_summary: ${paymentsError.message}`);
+                       }
+                   } else {
+                       console.log(`   ❌ NO MATCH: ${closeDate} !== ${date}`);
+                   }
+               } catch (dateError) {
+                   registerDebug.date_processing_error = dateError.message;
+                   console.log(`   ❌ Error procesando fecha: ${dateError.message}`);
+               }
+           } else {
+               console.log(`   ⚠️ Sin fecha de cierre`);
+           }
+           
+           debugInfo.push(registerDebug);
+       }
+
+       // Análisis final
+       const registersWithClosures = debugInfo.filter(r => r.has_close_time);
+       const matchingRegisters = debugInfo.filter(r => r.matches_search);
+       const successfulPayments = debugInfo.filter(r => r.payments_summary_test?.success);
+       
+       console.log(`📊 DEBUG RESUMEN FINAL:`);
+       console.log(`   - Total registros: ${registers.length}`);
+       console.log(`   - Con fechas de cierre: ${registersWithClosures.length}`);
+       console.log(`   - Coinciden con búsqueda (${date}): ${matchingRegisters.length}`);
+       console.log(`   - Payments summary exitoso: ${successfulPayments.length}`);
+       console.log(`   - Fechas disponibles: ${Array.from(availableDates).sort().join(', ')}`);
+
+       // Determinar el problema
+       let problemIdentified = 'UNKNOWN';
+       let recommendation = 'Revisar logs para más detalles';
+       
+       if (!date) {
+           problemIdentified = 'NO_DATE_PROVIDED';
+           recommendation = 'Proporciona una fecha en formato YYYY-MM-DD';
+       } else if (availableDates.size === 0) {
+           problemIdentified = 'NO_CLOSURES_EXIST';
+           recommendation = 'No hay cierres en el sistema. Verifica que los registros se hayan cerrado.';
+       } else if (matchingRegisters.length === 0) {
+           problemIdentified = 'NO_MATCHING_DATE';
+           recommendation = `La fecha ${date} no tiene cierres. Usa una de estas fechas: ${Array.from(availableDates).sort().reverse().slice(0, 5).join(', ')}`;
+       } else if (successfulPayments.length === 0) {
+           problemIdentified = 'PAYMENTS_SUMMARY_FAILS';
+           recommendation = 'Los registros coinciden pero falla el endpoint payments_summary. Revisar permisos de API.';
+       } else {
+           problemIdentified = 'SUCCESS';
+           recommendation = `✅ Todo funciona correctamente. ${successfulPayments.length} cierres encontrados.`;
+       }
+
+       res.json({
+           success: true,
+           debug_mode: true,
+           search_date: date,
+           problem_identified: problemIdentified,
+           recommendation: recommendation,
+           summary: {
+               total_registers: registers.length,
+               registers_with_closures: registersWithClosures.length,
+               matching_registers: matchingRegisters.length,
+               successful_payments: successfulPayments.length,
+               available_dates_count: availableDates.size
+           },
+           available_dates: Array.from(availableDates).sort().reverse(),
+           register_details: debugInfo,
+           successful_closures: successfulPayments.map(r => ({
+               id: r.id,
+               name: r.name,
+               close_date: r.close_date,
+               total_payments: r.payments_summary_test?.total_payments,
+               sequence_number: r.payments_summary_test?.sequence_number
+           })),
+           timestamp: new Date().toISOString()
+       });
+       
+   } catch (error) {
+       console.error('❌ DEBUG ERROR:', error);
+       res.status(500).json({
+           success: false,
+           debug_mode: true,
+           error: error.message,
+           stack: error.stack,
+           timestamp: new Date().toISOString()
+       });
+   }
+});
+
+// 🎯 ENDPOINT PARA PROBAR REGISTERNVO ESPECÍFICAMENTE
+app.get('/api/test-registernvo', async (req, res) => {
+   try {
+       const registerNvoId = '02dcd191-aefb-11e7-edd8-2a8a3939ec0c';
+       console.log(`🎯 PROBANDO REGISTERNVO ESPECÍFICAMENTE: ${registerNvoId}`);
+       
+       const tests = {};
+       
+       // 1. Info básica
+       try {
+           console.log(`   🔍 Obteniendo info básica del registro...`);
+           const registerData = await callLightspeedAPI(`/registers/${registerNvoId}`);
+           tests.basic_info = {
+               success: true,
+               data: registerData.data,
+               close_time: registerData.data?.register_close_time,
+               close_date: registerData.data?.register_close_time ? 
+                   new Date(registerData.data.register_close_time).toISOString().split('T')[0] : null,
+               is_open: registerData.data?.is_open,
+               name: registerData.data?.name
+           };
+           console.log(`   ✅ Info básica OK: ${tests.basic_info.name}, Cerrado: ${tests.basic_info.close_date}`);
+       } catch (error) {
+           tests.basic_info = { success: false, error: error.message };
+           console.log(`   ❌ Error info básica: ${error.message}`);
+       }
+       
+       // 2. Payments Summary (ENDPOINT CLAVE)
+       try {
+           console.log(`   🔍 Probando payments_summary...`);
+           const paymentsData = await callLightspeedAPI(`/registers/${registerNvoId}/payments_summary`);
+           
+           let totalPayments = 0;
+           if (paymentsData.data && paymentsData.data.payments) {
+               totalPayments = paymentsData.data.payments.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+           }
+           
+           tests.payments_summary = {
+               success: true,
+               total_payments: totalPayments,
+               payments_breakdown: paymentsData.data?.payments,
+               sequence_number: paymentsData.data?.register_closure_sequence_number,
+               register_open_time: paymentsData.data?.register_open_time,
+               full_response: paymentsData
+           };
+           console.log(`   ✅ Payments summary OK: $${totalPayments}, Secuencia: ${tests.payments_summary.sequence_number}`);
+       } catch (error) {
+           tests.payments_summary = { success: false, error: error.message };
+           console.log(`   ❌ Error payments_summary: ${error.message}`);
+       }
+       
+       // 3. Outlet info
+       if (tests.basic_info?.success && tests.basic_info.data?.outlet_id) {
+           try {
+               console.log(`   🔍 Obteniendo info del outlet...`);
+               const outletData = await callLightspeedAPI(`/outlets/${tests.basic_info.data.outlet_id}`);
+               tests.outlet_info = {
+                   success: true,
+                   outlet_name: outletData.data?.name,
+                   outlet_id: tests.basic_info.data.outlet_id
+               };
+               console.log(`   ✅ Outlet info OK: ${tests.outlet_info.outlet_name}`);
+           } catch (error) {
+               tests.outlet_info = { success: false, error: error.message };
+               console.log(`   ❌ Error outlet info: ${error.message}`);
+           }
+       }
+       
+       // 4. Construir cierre completo si todo funciona
+       if (tests.basic_info?.success && tests.payments_summary?.success) {
+           tests.complete_closure = {
+               id: registerNvoId,
+               outlet: tests.outlet_info?.outlet_name || 'Unknown',
+               register_name: tests.basic_info.data?.name,
+               date: tests.basic_info.close_date,
+               closed_at: tests.basic_info.data?.register_close_time,
+               sales: tests.payments_summary.total_payments,
+               payments: tests.payments_summary.total_payments,
+               sequence_number: tests.payments_summary.sequence_number,
+               url: `https://construmas.retail.lightspeed.app/register/closure/summary/${registerNvoId}`,
+               payments_breakdown: tests.payments_summary.payments_breakdown
+           };
+           console.log(`   ✅ Cierre completo construido exitosamente`);
+       }
+       
+       const isWorking = tests.basic_info?.success && tests.payments_summary?.success;
+       
+       res.json({
+           success: true,
+           register_tested: 'RegisterNVO',
+           register_id: registerNvoId,
+           tests: tests,
+           working: isWorking,
+           expected_date: tests.basic_info?.close_date,
+           message: isWorking ? 
+               `✅ RegisterNVO funciona correctamente. Fecha: ${tests.basic_info?.close_date}` : 
+               '❌ Hay problemas con RegisterNVO',
+           next_step: isWorking ? 
+               `Usa la fecha ${tests.basic_info?.close_date} en tu búsqueda` :
+               'Revisar permisos de API o configuración',
+           timestamp: new Date().toISOString()
+       });
+       
+   } catch (error) {
+       console.error('❌ Error probando RegisterNVO:', error);
+       res.status(500).json({
+           success: false,
+           error: error.message,
+           timestamp: new Date().toISOString()
+       });
+   }
+});
+
+// Endpoint principal para obtener cierres - MEJORADO CON DEBUGGING
 app.get('/api/closures', async (req, res) => {
    try {
        const { date } = req.query;
@@ -60,7 +340,8 @@ app.get('/api/closures', async (req, res) => {
        if (!date) {
            return res.status(400).json({
                success: false,
-               error: 'Parámetro date requerido (formato: YYYY-MM-DD)'
+               error: 'Parámetro date requerido (formato: YYYY-MM-DD)',
+               suggestion: 'Usa /api/available-dates para ver fechas disponibles'
            });
        }
 
@@ -73,10 +354,14 @@ app.get('/api/closures', async (req, res) => {
        console.log(`📋 Encontrados ${registers.length} registros X-Series`);
 
        const closures = [];
+       let processedCount = 0;
+       let matchedCount = 0;
+       let successfulCount = 0;
        
        for (const register of registers) {
            try {
-               console.log(`🔍 Registro X-Series: ${register.name}`);
+               processedCount++;
+               console.log(`🔍 [${processedCount}/${registers.length}] Registro X-Series: ${register.name}`);
                console.log(`   - ID: ${register.id}`);
                console.log(`   - Outlet ID: ${register.outlet_id}`);
                console.log(`   - Abierto: ${register.is_open ? 'SÍ' : 'NO'}`);
@@ -88,7 +373,8 @@ app.get('/api/closures', async (req, res) => {
                    console.log(`   - Fecha procesada: ${closeDate} (buscando: ${date})`);
                    
                    if (closeDate === date) {
-                       console.log(`✅ MATCH! Registro ${register.name} cerrado en ${date}`);
+                       matchedCount++;
+                       console.log(`✅ MATCH [${matchedCount}]! Registro ${register.name} cerrado en ${date}`);
                        
                        try {
                            // ENDPOINT CLAVE X-SERIES: payments_summary
@@ -131,7 +417,8 @@ app.get('/api/closures', async (req, res) => {
                                api_version: 'X-Series v2.0'
                            });
                            
-                           console.log(`✅ Cierre X-Series agregado exitosamente`);
+                           successfulCount++;
+                           console.log(`✅ Cierre [${successfulCount}] X-Series agregado exitosamente`);
                            
                        } catch (detailError) {
                            console.error(`❌ Error obteniendo detalles del registro X-Series ${register.name}:`, detailError.message);
@@ -165,14 +452,20 @@ app.get('/api/closures', async (req, res) => {
            }
        }
 
-       console.log(`📊 Total cierres X-Series encontrados: ${closures.length}`);
+       console.log(`📊 RESUMEN FINAL:`);
+       console.log(`   - Registros procesados: ${processedCount}/${registers.length}`);
+       console.log(`   - Registros con match de fecha: ${matchedCount}`);
+       console.log(`   - Cierres exitosos: ${successfulCount}`);
+       console.log(`   - Total cierres X-Series encontrados: ${closures.length}`);
 
        if (closures.length === 0) {
            // Mostrar fechas disponibles para debugging
            console.log(`🔍 FECHAS DE CIERRE DISPONIBLES EN X-SERIES:`);
+           const availableDates = new Set();
            registers.forEach(register => {
                if (register.register_close_time) {
                    const closeDate = new Date(register.register_close_time).toISOString().split('T')[0];
+                   availableDates.add(closeDate);
                    console.log(`   - ${register.name}: ${closeDate}`);
                }
            });
@@ -182,15 +475,21 @@ app.get('/api/closures', async (req, res) => {
                data: [],
                total: 0,
                date: date,
-               message: `No se encontraron cierres X-Series para la fecha ${date}. Revisa los logs para ver las fechas disponibles.`,
+               message: `No se encontraron cierres X-Series para la fecha ${date}.`,
                api_version: 'X-Series v2.0',
                debug_info: {
                    total_registers: registers.length,
                    registers_with_close_time: registers.filter(r => r.register_close_time).length,
-                   available_dates: [...new Set(registers
-                       .filter(r => r.register_close_time)
-                       .map(r => new Date(r.register_close_time).toISOString().split('T')[0]))]
-               }
+                   matched_registers: matchedCount,
+                   successful_processing: successfulCount,
+                   available_dates: Array.from(availableDates).sort().reverse()
+               },
+               suggestion: `Prueba con una de estas fechas: ${Array.from(availableDates).sort().reverse().slice(0, 3).join(', ')}`,
+               debug_endpoints: [
+                   `/api/debug-closures?date=${date}`,
+                   '/api/test-registernvo',
+                   '/api/available-dates'
+               ]
            });
        }
 
@@ -202,34 +501,28 @@ app.get('/api/closures', async (req, res) => {
            api_version: 'Lightspeed X-Series v2.0',
            endpoint_used: '/registers + /registers/:id/payments_summary',
            documentation: 'https://x-series-api.lightspeedhq.com/docs/registers_closing',
+           processing_summary: {
+               total_registers: registers.length,
+               matched_registers: matchedCount,
+               successful_closures: successfulCount,
+               processing_success_rate: `${Math.round((successfulCount/matchedCount)*100)}%`
+           },
            timestamp: new Date().toISOString()
        });
        
    } catch (error) {
        console.error('❌ Error obteniendo cierres X-Series:', error);
        
-       // Fallback con datos simulados actualizados
-       const fallbackClosures = [
-           {
-               id: '02dcd191-aefb-11e7-edd8-2a8a3939ec0c',
-               outlet: 'Construmas Bacanton',
-               register_name: 'RegisterNVO',
-               date: req.query.date || new Date().toISOString().split('T')[0],
-               sales: 1250.50,
-               payments: 1250.50,
-               sequence_number: 'CLS-001',
-               url: 'https://construmas.retail.lightspeed.app/register/closure/summary/02dcd191-aefb-11e7-edd8-2a8a3939ec0c',
-               api_version: 'X-Series v2.0 (fallback)'
-           }
-       ];
-
-       res.json({
-           success: true,
-           data: fallbackClosures,
-           total: fallbackClosures.length,
-           date: req.query.date || new Date().toISOString().split('T')[0],
-           note: 'Datos simulados X-Series (API error): ' + error.message,
-           api_version: 'X-Series v2.0 (fallback)'
+       res.status(500).json({
+           success: false,
+           error: error.message,
+           api_version: 'X-Series v2.0',
+           suggestion: 'Verificar token y permisos para X-Series API',
+           debug_endpoints: [
+               '/api/debug-closures',
+               '/api/test-registernvo'
+           ],
+           timestamp: new Date().toISOString()
        });
    }
 });
@@ -241,32 +534,47 @@ app.get('/api/test', async (req, res) => {
            throw new Error('Variables de entorno no configuradas para X-Series');
        }
 
+       console.log(`🔍 Probando conexión X-Series: ${API_URL}`);
+
        // Probar endpoints específicos de X-Series
        const testEndpoints = ['/outlets', '/registers', '/payment_types'];
        const results = {};
        
        for (const endpoint of testEndpoints) {
            try {
+               console.log(`   🔍 Probando ${endpoint}...`);
                const data = await callLightspeedAPI(endpoint);
                results[endpoint] = {
                    success: true,
-                   count: data.data ? data.data.length : (Array.isArray(data) ? data.length : 'N/A')
+                   count: data.data ? data.data.length : (Array.isArray(data) ? data.length : 'N/A'),
+                   sample_keys: data.data && data.data.length > 0 ? Object.keys(data.data[0]).slice(0, 5) : []
                };
+               console.log(`   ✅ ${endpoint}: ${results[endpoint].count} items`);
            } catch (error) {
                results[endpoint] = {
                    success: false,
                    error: error.message
                };
+               console.log(`   ❌ ${endpoint}: ${error.message}`);
            }
        }
        
+       const successfulTests = Object.values(results).filter(r => r.success).length;
+       
        res.json({
-           success: true,
-           message: '✅ Conexión exitosa con Lightspeed X-Series API',
+           success: successfulTests > 0,
+           message: successfulTests === testEndpoints.length ? 
+               '✅ Conexión exitosa con Lightspeed X-Series API' :
+               `⚠️ Conexión parcial: ${successfulTests}/${testEndpoints.length} endpoints funcionando`,
            api_version: 'X-Series v2.0',
            environment: 'Railway',
            api_url: API_URL,
            test_results: results,
+           debug_endpoints: [
+               '/api/debug-closures?date=YYYY-MM-DD',
+               '/api/test-registernvo',
+               '/api/available-dates'
+           ],
            documentation: {
                main: 'https://x-series-api.lightspeedhq.com/',
                closing: 'https://x-series-api.lightspeedhq.com/docs/registers_closing',
@@ -275,119 +583,13 @@ app.get('/api/test', async (req, res) => {
            timestamp: new Date().toISOString()
        });
    } catch (error) {
+       console.error('❌ Error en test de conexión:', error);
        res.status(500).json({
            success: false,
            message: '❌ Error conectando con Lightspeed X-Series API',
            error: error.message,
            api_url: API_URL,
            timestamp: new Date().toISOString()
-       });
-   }
-});
-
-// Endpoint para explorar capacidades de X-Series
-app.get('/api/explore', async (req, res) => {
-   try {
-       const xSeriesEndpoints = [
-           '/outlets',
-           '/registers', 
-           '/sales',
-           '/payment_types',
-           '/users',
-           '/products',
-           '/customers'
-       ];
-
-       const results = {};
-       
-       for (const endpoint of xSeriesEndpoints) {
-           try {
-               console.log(`🔍 Explorando X-Series: ${endpoint}`);
-               const data = await callLightspeedAPI(endpoint);
-               results[endpoint] = {
-                   success: true,
-                   status: 'OK',
-                   count: data.data ? data.data.length : 'N/A',
-                   sample_keys: data.data && data.data.length > 0 ? Object.keys(data.data[0]) : [],
-                   pagination: data.pagination || null
-               };
-           } catch (error) {
-               results[endpoint] = {
-                   success: false,
-                   error: error.message
-               };
-           }
-       }
-
-       res.json({
-           success: true,
-           message: 'Exploración de X-Series completada',
-           api_version: 'X-Series v2.0',
-           exploration: results,
-           documentation: 'https://x-series-api.lightspeedhq.com/',
-           timestamp: new Date().toISOString()
-       });
-   } catch (error) {
-       res.status(500).json({
-           success: false,
-           error: error.message
-       });
-   }
-});
-
-// Endpoint para probar un registro específico con payments_summary
-app.get('/api/test-register/:registerId', async (req, res) => {
-   try {
-       const { registerId } = req.params;
-       console.log(`🔍 Probando registro específico X-Series: ${registerId}`);
-       
-       const tests = {};
-       
-       // Obtener info básica del registro
-       try {
-           const registerData = await callLightspeedAPI(`/registers/${registerId}`);
-           tests.register_info = {
-               success: true,
-               data: registerData.data
-           };
-       } catch (error) {
-           tests.register_info = {
-               success: false,
-               error: error.message
-           };
-       }
-       
-       // ENDPOINT CLAVE: payments_summary
-       try {
-           const paymentsData = await callLightspeedAPI(`/registers/${registerId}/payments_summary`);
-           const totalPayments = paymentsData.data?.payments?.reduce((sum, p) => sum + parseFloat(p.total || 0), 0) || 0;
-           
-           tests.payments_summary = {
-               success: true,
-               data: paymentsData.data,
-               total_payments: totalPayments,
-               sequence_number: paymentsData.data?.register_closure_sequence_number
-           };
-       } catch (error) {
-           tests.payments_summary = {
-               success: false,
-               error: error.message
-           };
-       }
-       
-       res.json({
-           success: true,
-           register_id: registerId,
-           tests: tests,
-           api_version: 'X-Series v2.0',
-           endpoint_tested: '/registers/:id/payments_summary',
-           timestamp: new Date().toISOString()
-       });
-       
-   } catch (error) {
-       res.status(500).json({
-           success: false,
-           error: error.message
        });
    }
 });
@@ -401,9 +603,11 @@ app.get('/api/available-dates', async (req, res) => {
        const registers = registersResponse.data;
        
        const availableDates = {};
+       let totalWithClosures = 0;
        
        registers.forEach(register => {
            if (register.register_close_time) {
+               totalWithClosures++;
                const closeDate = new Date(register.register_close_time).toISOString().split('T')[0];
                if (!availableDates[closeDate]) {
                    availableDates[closeDate] = [];
@@ -411,85 +615,39 @@ app.get('/api/available-dates', async (req, res) => {
                availableDates[closeDate].push({
                    register_name: register.name,
                    register_id: register.id,
-                   close_time: register.register_close_time
+                   close_time: register.register_close_time,
+                   is_open: register.is_open
                });
+               console.log(`📅 ${register.name}: ${closeDate}`);
            }
        });
+       
+       const datesList = Object.keys(availableDates).sort().reverse();
+       console.log(`📊 Total fechas con cierres: ${datesList.length}`);
        
        res.json({
            success: true,
            api_version: 'X-Series v2.0',
            total_registers: registers.length,
+           registers_with_closures: totalWithClosures,
            available_dates: availableDates,
-           dates_list: Object.keys(availableDates).sort().reverse(), // Más recientes primero
-           message: 'Fechas disponibles para filtrar cierres',
+           dates_list: datesList,
+           most_recent_dates: datesList.slice(0, 5),
+           message: datesList.length > 0 ? 
+               `Se encontraron cierres en ${datesList.length} fechas diferentes` :
+               'No se encontraron cierres en el sistema',
+           suggestion: datesList.length > 0 ? 
+               `Prueba con una de estas fechas: ${datesList.slice(0, 3).join(', ')}` :
+               'Verifica que los registros se hayan cerrado correctamente',
            timestamp: new Date().toISOString()
        });
        
    } catch (error) {
-       res.status(500).json({
-           success: false,
-           error: error.message
-       });
-   }
-});
-
-// Endpoint para configurar webhook de cierres (opcional)
-app.post('/api/setup-webhook', async (req, res) => {
-   try {
-       const webhookUrl = req.body.webhook_url || `${req.protocol}://${req.get('host')}/api/webhook/closure`;
-       
-       // Configurar webhook para register_closure.create
-       const webhookData = {
-           url: webhookUrl,
-           events: ['register_closure.create']
-       };
-       
-       console.log(`🔗 Configurando webhook X-Series: ${webhookUrl}`);
-       
-       // Esto requiere el endpoint POST /api/webhook de X-Series
-       const webhookResponse = await callLightspeedAPI('/webhook', {
-           method: 'POST',
-           body: JSON.stringify(webhookData)
-       });
-       
-       res.json({
-           success: true,
-           webhook_configured: true,
-           webhook_url: webhookUrl,
-           webhook_id: webhookResponse.data?.id,
-           message: 'Webhook configurado para recibir notificaciones de cierres automáticamente',
-           api_version: 'X-Series v2.0',
-           timestamp: new Date().toISOString()
-       });
-       
-   } catch (error) {
+       console.error('❌ Error obteniendo fechas disponibles:', error);
        res.status(500).json({
            success: false,
            error: error.message,
-           note: 'Webhook opcional - la app funciona sin esto'
-       });
-   }
-});
-
-// Endpoint para recibir webhooks de cierres (opcional)
-app.post('/api/webhook/closure', (req, res) => {
-   try {
-       console.log('🔔 Webhook de cierre recibido:', req.body);
-       
-       // Aquí puedes procesar el webhook automáticamente
-       // Por ejemplo, enviar notificación, actualizar base de datos, etc.
-       
-       res.json({
-           success: true,
-           message: 'Webhook de cierre procesado',
            timestamp: new Date().toISOString()
-       });
-       
-   } catch (error) {
-       res.status(500).json({
-           success: false,
-           error: error.message
        });
    }
 });
@@ -501,10 +659,14 @@ app.get('/', (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-   console.log(`🚀 Servidor X-Series corriendo en puerto ${PORT}`);
+   console.log(`🚀 Servidor X-Series con DEBUG corriendo en puerto ${PORT}`);
    console.log(`📱 Usando Lightspeed X-Series API: ${API_URL}`);
    console.log(`🔑 Token configurado: ${API_TOKEN ? 'Sí' : 'No'}`);
    console.log(`📚 Documentación: https://x-series-api.lightspeedhq.com/`);
    console.log(`🎯 Endpoint clave: /registers/:id/payments_summary`);
+   console.log(`🔍 DEBUG Endpoints:`);
+   console.log(`   - /api/debug-closures?date=YYYY-MM-DD`);
+   console.log(`   - /api/test-registernvo`);
+   console.log(`   - /api/available-dates`);
    console.log(`🔔 Webhook disponible: register_closure.create`);
 });
