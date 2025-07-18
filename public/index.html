@@ -212,26 +212,26 @@
             testConnection();
         });
         
-        async function testConnection() {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = '🔄 Conectando...';
-            statusDiv.className = 'status';
-            
-            try {
-                const response = await fetch('/api/test');
-                const data = await response.json();
-                
-                if (data.success) {
-                    statusDiv.textContent = '✅ Conexión exitosa con Railway';
-                    statusDiv.className = 'status success';
-                } else {
-                    throw new Error('Error de conexión');
-                }
-            } catch (error) {
-                statusDiv.textContent = '❌ Error de conexión';
-                statusDiv.className = 'status error';
-            }
+       async function testConnection() {
+    const statusDiv = document.getElementById('status');
+    statusDiv.textContent = '🔄 Conectando con Lightspeed...';
+    statusDiv.className = 'status';
+    
+    try {
+        const response = await fetch('/api/test');
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.textContent = '✅ Conexión exitosa con API de Lightspeed';
+            statusDiv.className = 'status success';
+        } else {
+            throw new Error('Error de conexión');
         }
+    } catch (error) {
+        statusDiv.textContent = '❌ Error de conexión con Lightspeed';
+        statusDiv.className = 'status error';
+    }
+}
         
         async function searchClosures() {
             const date = document.getElementById('dateInput').value;
